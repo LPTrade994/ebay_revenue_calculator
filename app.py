@@ -2,6 +2,9 @@ import streamlit as st
 import json
 from decimal import Decimal, ROUND_HALF_UP
 
+# --- Streamlit Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
+st.set_page_config(page_title="Calcolatore Commissioni eBay", layout="wide")
+
 # --- Utility Functions ---
 def to_decimal(value, precision='0.01'):
     """Converts a float or string to Decimal with specified precision."""
@@ -12,7 +15,7 @@ def to_percentage_decimal(value):
     return Decimal(str(value))
 
 # --- Load Fee Data ---
-@st.cache_data
+@st.cache_data # This decorator itself is a Streamlit command if it interacts with Streamlit's caching mechanism early
 def load_fee_data(file_path="ebay_professional_fees_it.json"):
     with open(file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
@@ -34,11 +37,12 @@ def load_fee_data(file_path="ebay_professional_fees_it.json"):
                         "final_value_fee": to_decimal(vehicle_item_data['final_value_fee'])
                     }
             else:
+                # This st.warning() is fine here as set_page_config has already been called
                 st.warning(f"Dati incompleti per il tipo di veicolo '{key}' nel JSON.")
     data['_vehicle_category_map'] = vehicle_cats
     return data
 
-FEE_DATA = load_fee_data()
+FEE_DATA = load_fee_data() # Now this is called AFTER set_page_config
 
 # --- Calculation Functions ---
 
@@ -125,15 +129,14 @@ def calculate_fees(item_price, shipping_cost, item_cost, category_id, buyer_coun
     total_sale_price_dec = item_price_dec + shipping_cost_dec
     results['total_sale_price'] = total_sale_price_dec
 
-    # 1. Final Value Fee (FVF)
-    is_vehicle_fixed_fvf = False # Initialize here
+    is_vehicle_fixed_fvf = False 
     if category_id in FEE_DATA['_vehicle_category_map']:
         vehicle_info = FEE_DATA['_vehicle_category_map'][category_id]
         if vehicle_info['type'] in ["high_value_vehicles", "motorcycles_and_others"]:
             base_fvf_amount = vehicle_info['final_value_fee']
             fvf_group_name = f"Veicoli ({vehicle_info['type']})"
             results['fvf_calculation_details'] = f"Tariffa fissa per {fvf_group_name}"
-            is_vehicle_fixed_fvf = True # Set here
+            is_vehicle_fixed_fvf = True
         else: 
             base_fvf_amount, fvf_group_name, is_tiered = get_final_value_fee_rate_and_group(category_id, total_sale_price_dec)
             results['fvf_calculation_details'] = f"Tariffa {'a scaglioni' if is_tiered else 'variabile'} per '{fvf_group_name}'"
@@ -144,7 +147,7 @@ def calculate_fees(item_price, shipping_cost, item_cost, category_id, buyer_coun
     base_fvf_amount = to_decimal(base_fvf_amount)
     results['base_fvf_amount_raw'] = base_fvf_amount
     results['fvf_group_name'] = fvf_group_name
-    results['is_vehicle_fixed_fvf'] = is_vehicle_fixed_fvf # <<< ADD THIS LINE
+    results['is_vehicle_fixed_fvf'] = is_vehicle_fixed_fvf
 
     effective_fvf = base_fvf_amount
     results['fvf_discounts_surcharges'] = []
@@ -282,7 +285,8 @@ def calculate_fees(item_price, shipping_cost, item_cost, category_id, buyer_coun
     return results
 
 # --- Streamlit UI ---
-st.set_page_config(page_title="Calcolatore Commissioni eBay", layout="wide")
+# st.set_page_config IS ALREADY AT THE TOP
+
 st.title("📊 Calcolatore Commissioni eBay (Italia)")
 st.caption(f"Basato sulle tariffe professionali del: {FEE_DATA['generated_on']}")
 
@@ -351,7 +355,7 @@ if st.sidebar.button("🔄 Calcola", use_container_width=True):
         item_price_input, shipping_cost_input, item_cost_input, category_id_input,
         buyer_country_input, seller_status_input, high_inad_input,
         store_subscription_input, num_listings_input, 
-        "Asta" if listing_type_input == "Asta" else "Compralo Subito", # Pass correct key
+        "Asta" if listing_type_input == "Asta" else "Compralo Subito",
         add_subtitle_input, reserve_price_val_input, use_reserve_price_input,
         apply_vat_input, vat_rate_val_input
     )
@@ -391,12 +395,11 @@ if st.sidebar.button("🔄 Calcola", use_container_width=True):
         st.markdown("---")
 
         st.markdown("#### Riepilogo stile Esempio eBay:")
-        # <<< USE THE VALUE FROM THE 'fees' DICTIONARY >>>
         current_is_vehicle_fixed_fvf = fees['is_vehicle_fixed_fvf'] 
 
         example_fvf_base = fees['base_fvf_amount_raw']
         example_discount_amount = Decimal('0')
-        if not current_is_vehicle_fixed_fvf: # Now this check is valid
+        if not current_is_vehicle_fixed_fvf:
             for item in fees['fvf_discounts_surcharges']:
                 if "Sconto Venditore Affidabilità Top" in item['name']:
                      example_discount_amount = abs(item['amount']) 
