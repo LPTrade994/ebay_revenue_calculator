@@ -1,0 +1,245 @@
+ebay_it_fees:
+  meta:
+    generated: "2025-05-27"
+    currency: "EUR"
+    vat_included: false
+
+  # --------------------------------------------------------------------
+  # 1. Costanti e formule base
+  # --------------------------------------------------------------------
+  constants:
+    fixed_fee_per_order: 0.35        # €/ordine      
+    regulatory_adjustment_rate: 0.0035   # 0,35 % del totale vendita 
+    currency_conversion_rate: 0.03       # 3 % se avviene conversione 
+  discounts_surcharges:
+    top_rated_discount: -0.10        # −10 % sulla parte variabile FVF 
+    high_snad_surcharge: 0.04        # +4 pp se “Molto alta” SNAD     
+    below_standard_surcharge: 0.06   # +6 pp se livello “Sotto lo standard” 
+
+  # --------------------------------------------------------------------
+  # 2. Tariffe d’inserzione e Negozi
+  # --------------------------------------------------------------------
+  insertion_fees:
+    non_store:
+      fixed_price: 0.35   # Compralo Subito  
+      auction: 0.50       # Asta online      
+    stores:
+      base:
+        monthly_fee: 24.95
+        fixed_price_free: 400
+        fixed_price_extra: 0.10
+        auction_free: 40
+        auction_extra: 0.50
+      premium:
+        monthly_fee: 49.95
+        fixed_price_free: 10000
+        fixed_price_extra: 0.05
+        auction_free: 100
+        auction_extra: 0.50
+      premium_plus:
+        monthly_fee: 179.95
+        fixed_price_free: "unlimited"
+        fixed_price_extra: 0.00
+        auction_free: 250
+        auction_extra: 0.50     # 
+
+  # --------------------------------------------------------------------
+  # 3. Tariffa internazionale
+  # --------------------------------------------------------------------
+  international_fee_rates:            # applicata sul totale vendita se spedizione fuori Eurozona/Svezia
+    eurozone_sweden: 0.00
+    europe_non_eurozone_sweden_uk: 0.016
+    united_kingdom: 0.012
+    rest_of_world: 0.033            # 
+
+  # --------------------------------------------------------------------
+  # 4. Commissione sul valore finale – mappa categoria
+  # fee_type = flat | tier
+  # tiers = array di {up_to, from, to, above, rate}
+  # --------------------------------------------------------------------
+  categories:
+    # ---------------- 12 % (flat) ----------------
+    "131090": {name: "Ricambi moto (cat. principale)", fee_type: flat, rate: 0.12}
+    "147506": {name: "Mini moto: ricambi", fee_type: flat, rate: 0.12}
+    "32098":  {name: "Moto d’epoca: ricambi", fee_type: flat, rate: 0.12}
+    "25622":  {name: "Moto: accessori", fee_type: flat, rate: 0.12}
+    "21670":  {name: "Moto: manuali/istruzioni", fee_type: flat, rate: 0.12}
+    "10063":  {name: "Moto: ricambi", fee_type: flat, rate: 0.12}
+    "122304": {name: "Motocross & trial: ricambi", fee_type: flat, rate: 0.12}
+    "177074": {name: "Abbigliamento caschi/protezioni", fee_type: flat, rate: 0.12}
+    "38635":  {name: "GPS, audio, elettronica auto", fee_type: flat, rate: 0.12}
+    "159912": {name: "Giardino & arredi esterni", fee_type: flat, rate: 0.12}
+
+    # ---------------- 12,5 % (flat) --------------
+    "6030": {name: "Auto: ricambi e accessori", fee_type: flat, rate: 0.125}
+
+    # ---------------- 12 % / 10 % sopra 250 € ---
+    "25863": {name: "Arredo giardino/esterno", fee_type: tier,
+              tiers: [{up_to: 250, rate: 0.12}, {above: 250, rate: 0.10}]}
+    "20727": {name: "Piscine/saune/idromassaggio", fee_type: tier,
+              tiers: [{up_to: 250, rate: 0.12}, {above: 250, rate: 0.10}]}
+    "139956": {name: "Capanni/rimesse/pensiline", fee_type: tier,
+              tiers: [{up_to: 250, rate: 0.12}, {above: 250, rate: 0.10}]}
+
+    # ---------------- 11 % (flat) ----------------
+    "11700": {name: "Casa, arredamento, bricolage", fee_type: flat, rate: 0.11}
+    "14339": {name: "Hobby creativi", fee_type: flat, rate: 0.11}
+    "2984":  {name: "Infanzia & premaman", fee_type: flat, rate: 0.11}
+    "260059": {name: "Cibi & bevande", fee_type: flat, rate: 0.11}
+    # “altre categorie” più sotto ereditano 11 %
+
+    # ----- 11 % / 2 % sopra 990 € ----------------
+    "353":   {name: "Arte & Antiquariato", fee_type: tier,
+              tiers: [{up_to: 990, rate: 0.11}, {above: 990, rate: 0.02}]}
+    "220":   {name: "Giocattoli & modellismo", fee_type: tier,
+              tiers: [{up_to: 990, rate: 0.11}, {above: 990, rate: 0.02}]}
+    "260":   {name: "Francobolli", fee_type: tier,
+              tiers: [{up_to: 990, rate: 0.11}, {above: 990, rate: 0.02}]}
+    "11116": {name: "Monete & banconote", fee_type: tier,
+              tiers: [{up_to: 990, rate: 0.11}, {above: 990, rate: 0.02}]}
+    "1":     {name: "Collezionismo (restante)", fee_type: tier,
+              tiers: [{up_to: 990, rate: 0.11}, {above: 990, rate: 0.02}]}
+
+    # ----- 11 % / 5 % sopra 100 € ----------------
+    "3034":  {name: "Scarpe Donna", fee_type: tier,
+              tiers: [{up_to: 100, rate: 0.11}, {above: 100, rate: 0.05}]}
+    "93227": {name: "Scarpe Uomo", fee_type: tier,
+              tiers: [{up_to: 100, rate: 0.11}, {above: 100, rate: 0.05}]}
+
+    # ----- 11 % / 5 % 100-990 € / 2 % > 990 € ----
+    "260325": {name: "Orologi", fee_type: tier,
+               tiers: [{up_to: 100, rate: 0.11},
+                       {from: 100, to: 990, rate: 0.05},
+                       {above: 990, rate: 0.02}]}
+
+    # ----- 11 % / 4 % sopra 990 € ----------------
+    "281": {name: "Gioielli (escl. orologi)", fee_type: tier,
+            tiers: [{up_to: 990, rate: 0.11}, {above: 990, rate: 0.04}]}
+
+    # ----- 11 % / 2 % sopra 990 € ----------------
+    "169291": {name: "Borse & borsette", fee_type: tier,
+               tiers: [{up_to: 990, rate: 0.11}, {above: 990, rate: 0.02}]}
+
+    # ---------------- 9,5 % (flat) ---------------
+    "43566": {name: "Ricambi cucine", rate: 0.095, fee_type: flat}
+    "99565": {name: "Ricambi macchine caffè", rate: 0.095, fee_type: flat}
+    "99697": {name: "Ricambi lavatrici & asciugatrici", rate: 0.095, fee_type: flat}
+    "116026": {name: "Ricambi lavastoviglie", rate: 0.095, fee_type: flat}
+    "159903": {name: "Ricambi microonde", rate: 0.095, fee_type: flat}
+    "20618": {name: "Sacchetti aspirapolvere", rate: 0.095, fee_type: flat}
+    "42146": {name: "Ricambi aspirapolvere", rate: 0.095, fee_type: flat}
+
+    # ---------------- 8,5 % (flat) ---------------
+    "293":   {name: "TV, Audio & Video – accessori", rate: 0.085, fee_type: flat}
+    "619":   {name: "Strumenti musicali – accessori", rate: 0.085, fee_type: flat}
+    "625":   {name: "Fotografia & Video – accessori", rate: 0.085, fee_type: flat}
+    "15032": {name: "Telefonia – accessori", rate: 0.085, fee_type: flat}
+    "58058": {name: "Informatica – accessori", rate: 0.085, fee_type: flat}
+
+    # ---------------- 6,5 % (flat) ---------------
+    # Tech dispositivi principali (smartphone, computer, console, ecc.)
+    "3247": {name: "Utensili elettrici", rate: 0.065, fee_type: flat}
+    "4787": {name: "Stereo compatti", rate: 0.065, fee_type: flat}
+    "9355": {name: "Cellulari & smartphone", rate: 0.065, fee_type: flat}
+    "11071": {name: "Televisori", rate: 0.065, fee_type: flat}
+    "11724": {name: "Videocamere digitali", rate: 0.065, fee_type: flat}
+    "14970": {name: "Amplificatori", rate: 0.065, fee_type: flat}
+    "14990": {name: "Casse/Diffusori HI-FI", rate: 0.065, fee_type: flat}
+    "15069": {name: "Decoder Sat/DTT", rate: 0.065, fee_type: flat}
+    "15088": {name: "Videoregistratori", rate: 0.065, fee_type: flat}
+    "18793": {name: "Software", rate: 0.065, fee_type: flat}
+    "20710": {name: "Elettrodomestici", rate: 0.065, fee_type: flat}
+    "29518": {name: "Elettroutensili giardino", rate: 0.065, fee_type: flat}
+    "31388": {name: "Fotocamere digitali", rate: 0.065, fee_type: flat}
+    "32852": {name: "DVD/Blu-ray/Home Cinema", rate: 0.065, fee_type: flat}
+    "44995": {name: "Router Wi-Fi", rate: 0.065, fee_type: flat}
+    "64602": {name: "Impianti Karaoke", rate: 0.065, fee_type: flat}
+    "73839": {name: "iPod & lettori MP3", rate: 0.065, fee_type: flat}
+    "78997": {name: "Obiettivi & filtri", rate: 0.065, fee_type: flat}
+    "116868": {name: "Registratori cassette", rate: 0.065, fee_type: flat}
+    "139971": {name: "Console", rate: 0.065, fee_type: flat}
+    "182085": {name: "Dischi fissi/NAS", rate: 0.065, fee_type: flat}
+    "171485": {name: "Tablet & eReaders", rate: 0.065, fee_type: flat}
+    "171957": {name: "Desktop", rate: 0.065, fee_type: flat}
+    "171961": {name: "Stampanti & scanner", rate: 0.065, fee_type: flat}
+    "175672": {name: "Notebook/Laptop", rate: 0.065, fee_type: flat}
+    "175708": {name: "Componenti HI-FI", rate: 0.065, fee_type: flat}
+
+    # --------------- 9,5 % (flat) – altri accessori elettronici
+    "9394":  {name: "Accessori cellulari", rate: 0.095, fee_type: flat}
+    "31530": {name: "Accessori computer", rate: 0.095, fee_type: flat}
+    "14961": {name: "Accessori TV/Home Audio", rate: 0.095, fee_type: flat}
+    "15200": {name: "Accessori foto/videocamere", rate: 0.095, fee_type: flat}
+    "3286":  {name: "Telefonia fissa & accessori", rate: 0.095, fee_type: flat}
+    "176970": {name: "Accessori tablet/eBook", rate: 0.095, fee_type: flat}
+    "64353": {name: "Flash & accessori", rate: 0.095, fee_type: flat}
+    "182064": {name: "Smartwatch – accessori", rate: 0.095, fee_type: flat}
+    "175744": {name: "Palmari – accessori", rate: 0.095, fee_type: flat}
+
+    # -------- 6,5 % fino 990 € / 2 % sopra -------
+    "212":   {name: "Carte collezionabili sportive", fee_type: tier,
+              tiers: [{up_to: 990, rate: 0.065}, {above: 990, rate: 0.02}]}
+    "246":   {name: "Action figure", fee_type: tier,
+              tiers: [{up_to: 990, rate: 0.065}, {above: 990, rate: 0.02}]}
+    "2536":  {name: "Giochi carte collezionabili", fee_type: tier,
+              tiers: [{up_to: 990, rate: 0.065}, {above: 990, rate: 0.02}]}
+    "182982": {name: "Carte non sportive", fee_type: tier,
+               tiers: [{up_to: 990, rate: 0.065}, {above: 990, rate: 0.02}]}
+
+    # --------------- 6,5 % (flat) – Fumetti -------
+    "33346": {name: "Manga & fumetti asiatici", rate: 0.065, fee_type: flat}
+    "151093": {name: "Fumetti memorabilia", rate: 0.065, fee_type: flat}
+    "259103": {name: "Fumetti angloamericani", rate: 0.065, fee_type: flat}
+    "259106": {name: "Fumetti europei", rate: 0.065, fee_type: flat}
+
+    # -------- 6,5 % (flat) – Bellezza elettrica ---
+    "50101": {name: "Lettini UV", rate: 0.065, fee_type: flat}
+    "50102": {name: "Ricambi lettini UV", rate: 0.065, fee_type: flat}
+    "11858": {name: "Asciugacapelli", rate: 0.065, fee_type: flat}
+    "260774": {name: "Igiene orale elettrica", rate: 0.065, fee_type: flat}
+    "180512": {name: "Rasoi elettrici", rate: 0.065, fee_type: flat}
+    "36449": {name: "Massaggiatori", rate: 0.065, fee_type: flat}
+    "36448": {name: "Poltrone massaggianti", rate: 0.065, fee_type: flat}
+    "45735": {name: "Analizzatori grasso corporeo", rate: 0.065, fee_type: flat}
+    "77305": {name: "Bilance pesapersone", rate: 0.065, fee_type: flat}
+    "19263": {name: "Altro massaggio", rate: 0.065, fee_type: flat}
+    "11872": {name: "Manicure/Pedicure set", rate: 0.065, fee_type: flat}
+    "67408": {name: "Tagliacapelli/regolabarba", rate: 0.065, fee_type: flat}
+    "180953": {name: "Dispositivi riscaldanti", rate: 0.065, fee_type: flat}
+    "177767": {name: "Pulizia viso", rate: 0.065, fee_type: flat}
+    "1277":  {name: "Altro bellezza & salute", rate: 0.065, fee_type: flat}
+
+    # --------------- 11 % (flat) – Resto ----------
+    default:
+      applies_to: ["11450","26395","158990","888","99","1305","11233","11232",
+                   "267","38250","1249","12576"]
+      rate: 0.11
+      fee_type: flat
+
+  # --------------------------------------------------------------------
+  # 5. Categorie Veicoli (tariffe dedicate)
+  # --------------------------------------------------------------------
+  vehicles:
+    "9800_31269_63728":
+      insertion_fee: 7.83
+      final_value_fee: 30.43
+    "9804_9939_15266_153550_153551_1295":
+      insertion_fee: 5.22
+      final_value_fee: 16.52
+    reserve_price_option_fee: 4.35    # veicoli        
+
+  # --------------------------------------------------------------------
+  # 6. Opzioni di vendita facoltative
+  # (tariffe applicate per inserzione – ripetute a ogni ripubblicazione)
+  # --------------------------------------------------------------------
+  listing_upgrades:
+    subtitle: 1.30        # Sottotitolo 
+    reserve_price:        # Asta non veicoli
+      rate: 0.026         # 2,6 % del prezzo di riserva
+      min: 2.60
+      max: 130.00
+    additional_category:  # inserire in seconda categoria
+      note: "Si applicano di nuovo tariffa d’inserzione + FVF maggiore"  # 
+    photos_upto_24: 0.00
+    best_offer: 0.00
+    buy_it_now_on_auction: 0.00
