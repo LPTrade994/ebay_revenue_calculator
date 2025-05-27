@@ -3,25 +3,27 @@ import json
 from decimal import Decimal, ROUND_HALF_UP
 
 # --- Streamlit Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
-st.set_page_config(page_title="Calcolatore Utile Netto eBay", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Calcolatore Utile Netto eBay", layout="wide")
 
-# --- Funzioni Utility e Caricamento Dati (invariate) ---
+# --- Utility Functions ---
 def to_decimal(value, precision='0.01'):
     return Decimal(str(value)).quantize(Decimal(precision), rounding=ROUND_HALF_UP)
 
 def to_percentage_decimal(value):
     return Decimal(str(value))
 
+# --- Load Fee Data ---
 @st.cache_data
 def load_fee_data(file_path="ebay_professional_fees_it.json"):
-    # (Codice load_fee_data invariato, come nella versione precedente)
     with open(file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
+    
     category_to_fvf_group = {}
     for group in data['final_value_fees']:
         for cat_id in group['category_ids']:
             category_to_fvf_group[cat_id] = group
     data['_category_map'] = category_to_fvf_group
+
     vehicle_cats = {}
     for key, vehicle_item_data in data['vehicles'].items():
         if isinstance(vehicle_item_data, dict) and 'category_ids' in vehicle_item_data:
@@ -33,25 +35,23 @@ def load_fee_data(file_path="ebay_professional_fees_it.json"):
                         "final_value_fee": to_decimal(vehicle_item_data['final_value_fee'])
                     }
             else:
-                # st.warning(f"Dati incompleti per il tipo di veicolo '{key}' nel JSON.") # Rimosso per non interferire con set_page_config
-                pass # O loggare su console
+                st.warning(f"Dati incompleti per il tipo di veicolo '{key}' nel JSON.")
     data['_vehicle_category_map'] = vehicle_cats
     return data
 
 FEE_DATA = load_fee_data()
 
-# --- Funzioni di Calcolo (calculate_fees, get_final_value_fee_rate_and_group invariate) ---
-# (Codice delle funzioni di calcolo invariato, come nella versione precedente)
+# --- Calculation Functions ---
+
 def get_final_value_fee_rate_and_group(category_id, total_sale_price):
     total_sale_price_dec = to_decimal(total_sale_price)
     if category_id in FEE_DATA['_vehicle_category_map']:
         vehicle_info = FEE_DATA['_vehicle_category_map'][category_id]
         if vehicle_info['type'] in ["high_value_vehicles", "motorcycles_and_others"]:
-            return vehicle_info['final_value_fee'], f"Veicoli ({vehicle_info['type']})", False
+            return vehicle_info['final_value_fee'], f"Veicoli ({vehicle_info['type']})", False 
     fvf_group_data = FEE_DATA['_category_map'].get(category_id)
     if not fvf_group_data:
-        # st.warning(f"ID Cat. {category_id} non trovato, default 'Altre cat.'") # Rimosso per non interferire
-        pass
+        st.warning(f"ID Cat. {category_id} non trovato, default 'Altre cat.'")
         for group in FEE_DATA['final_value_fees']:
             if group['group'] == "Other_categories_including_clothing_beauty":
                 fvf_group_data = group; break
@@ -82,82 +82,94 @@ def get_final_value_fee_rate_and_group(category_id, total_sale_price):
                 if total_sale_price_dec > tier_above:
                     amt = max(Decimal('0'), total_sale_price_dec - max(tier_above, price_processed_up_to))
                     calculated_fvf += amt * tier_rate
-                break
+                break 
         return calculated_fvf, group_name, True
     return Decimal('0'), "Sconosciuto", False
 
-def calculate_fees(item_price, shipping_charged_to_customer, item_cost, your_actual_shipping_cost,
-                   category_id, buyer_country, seller_status, high_inad_surcharge,
-                   store_subscription, num_listings_this_month, listing_type,
+def calculate_fees(item_price, shipping_charged_to_customer, item_cost, your_actual_shipping_cost, # NUOVO PARAMETRO
+                   category_id, buyer_country, seller_status, high_inad_surcharge, 
+                   store_subscription, num_listings_this_month, listing_type, 
                    add_subtitle, reserve_price_value, use_reserve_price,
                    apply_vat, vat_rate_input):
     results = {}
     total_fees_pre_vat = Decimal('0')
+
     item_price_dec = to_decimal(item_price)
-    shipping_charged_dec = to_decimal(shipping_charged_to_customer)
+    shipping_charged_dec = to_decimal(shipping_charged_to_customer) # Questo è ciò che il cliente paga per la spedizione
     item_cost_dec = to_decimal(item_cost)
-    your_actual_shipping_cost_dec = to_decimal(your_actual_shipping_cost)
-    total_sale_price_dec = item_price_dec + shipping_charged_dec
+    your_actual_shipping_cost_dec = to_decimal(your_actual_shipping_cost) # NUOVO: costo reale spedizione
+
+    total_sale_price_dec = item_price_dec + shipping_charged_dec # Le commissioni eBay si basano su questo
     results['total_sale_price'] = total_sale_price_dec
     results['item_cost'] = item_cost_dec
-    results['your_actual_shipping_cost'] = your_actual_shipping_cost_dec
-    is_vehicle_fixed_fvf = False
+    results['your_actual_shipping_cost'] = your_actual_shipping_cost_dec # Memorizza per display
+
+    is_vehicle_fixed_fvf = False 
     if category_id in FEE_DATA['_vehicle_category_map']:
         vehicle_info = FEE_DATA['_vehicle_category_map'][category_id]
         if vehicle_info['type'] in ["high_value_vehicles", "motorcycles_and_others"]:
             base_fvf_amount = vehicle_info['final_value_fee']; fvf_group_name = f"Veicoli ({vehicle_info['type']})"
             results['fvf_calculation_details'] = f"Tariffa fissa per {fvf_group_name}"; is_vehicle_fixed_fvf = True
-        else:
+        else: 
             base_fvf_amount, fvf_group_name, _ = get_final_value_fee_rate_and_group(category_id, total_sale_price_dec)
-            results['fvf_calculation_details'] = f"Tariffa {'a scaglioni' if _ else 'variabile'} per '{fvf_group_name}'"
+            results['fvf_calculation_details'] = f"Tariffa {'a scaglioni' if _ else 'variabile'} per '{fvf_group_name}'" # _ is is_tiered
     else:
         base_fvf_amount, fvf_group_name, _ = get_final_value_fee_rate_and_group(category_id, total_sale_price_dec)
         results['fvf_calculation_details'] = f"Tariffa {'a scaglioni' if _ else 'variabile'} per '{fvf_group_name}'"
+
     base_fvf_amount = to_decimal(base_fvf_amount)
     results['base_fvf_amount_raw'] = base_fvf_amount; results['fvf_group_name'] = fvf_group_name
     results['is_vehicle_fixed_fvf'] = is_vehicle_fixed_fvf
+
     effective_fvf = base_fvf_amount; results['fvf_discounts_surcharges'] = []
     if not is_vehicle_fixed_fvf:
         if seller_status == "Venditore Affidabilità Top":
             disc_rate = to_percentage_decimal(FEE_DATA['discounts_surcharges']['top_rated_seller_discount_rate'])
-            disc_amt = base_fvf_amount*abs(disc_rate); effective_fvf -= disc_amt
-            results['fvf_discounts_surcharges'].append({"name":"Sconto Venditore Affidabilità Top","rate_on_fvf":abs(disc_rate)*100,"amount":-disc_amt})
+            disc_amt = base_fvf_amount * abs(disc_rate); effective_fvf -= disc_amt
+            results['fvf_discounts_surcharges'].append({"name": "Sconto Venditore Affidabilità Top","rate_on_fvf": abs(disc_rate)*100,"amount": -disc_amt})
         if high_inad_surcharge:
             sur_rate = to_percentage_decimal(FEE_DATA['discounts_surcharges']['high_INAD_surcharge_rate'])
-            sur_amt = base_fvf_amount*sur_rate; effective_fvf += sur_amt
-            results['fvf_discounts_surcharges'].append({"name":"Sovraccarico per controversie 'Non conforme'","rate_on_fvf":sur_rate*100,"amount":sur_amt})
+            sur_amt = base_fvf_amount * sur_rate; effective_fvf += sur_amt
+            results['fvf_discounts_surcharges'].append({"name": "Sovraccarico per controversie 'Non conforme'","rate_on_fvf": sur_rate*100,"amount": sur_amt})
         if seller_status == "Sotto lo standard":
             sur_rate = to_percentage_decimal(FEE_DATA['discounts_surcharges']['below_standard_surcharge_rate'])
-            sur_amt = base_fvf_amount*sur_rate; effective_fvf += sur_amt
-            results['fvf_discounts_surcharges'].append({"name":"Sovraccarico Venditore Sotto lo Standard","rate_on_fvf":sur_rate*100,"amount":sur_amt})
+            sur_amt = base_fvf_amount * sur_rate; effective_fvf += sur_amt
+            results['fvf_discounts_surcharges'].append({"name": "Sovraccarico Venditore Sotto lo Standard","rate_on_fvf": sur_rate*100,"amount": sur_amt})
+    
     results['final_value_fee'] = to_decimal(effective_fvf); total_fees_pre_vat += results['final_value_fee']
-    results['regulatory_fee'] = to_decimal(total_sale_price_dec*to_percentage_decimal(FEE_DATA['constants']['regulatory_compliance_fee_rate'])); total_fees_pre_vat += results['regulatory_fee']
+    results['regulatory_fee'] = to_decimal(total_sale_price_dec * to_percentage_decimal(FEE_DATA['constants']['regulatory_compliance_fee_rate'])); total_fees_pre_vat += results['regulatory_fee']
+    
     country_map = {"Italia":"Eurozone_Sweden","Malta":"Eurozone_Sweden","Germania":"Eurozone_Sweden","Francia":"Eurozone_Sweden","Spagna":"Eurozone_Sweden","Svezia":"Eurozone_Sweden",
                    "Regno Unito":"United_Kingdom","Stati Uniti":"United_States_Canada","Canada":"United_States_Canada","Svizzera":"Europe_non_eurozone_Sweden_UK",
                    "Norvegia":"Europe_non_eurozone_Sweden_UK","Altro (Resto del Mondo)":"Rest_of_world"}
     intl_key = country_map.get(buyer_country, "Rest_of_world")
     intl_rate = to_percentage_decimal(FEE_DATA['international_fee_rates'][intl_key])
-    results['international_fee'] = to_decimal(total_sale_price_dec*intl_rate); total_fees_pre_vat += results['international_fee']
+    results['international_fee'] = to_decimal(total_sale_price_dec * intl_rate); total_fees_pre_vat += results['international_fee']
     results['international_fee_details'] = f"Paese: {buyer_country}, Tariffa: {intl_rate*100:.1f}% ({intl_key})"
     results['fixed_order_fee'] = to_decimal(FEE_DATA['constants']['fixed_order_fee_eur']); total_fees_pre_vat += results['fixed_order_fee']
+
     insertion_fee = Decimal('0'); insertion_fee_details = "N/A"; is_vehicle_insertion = False
     if category_id in FEE_DATA['_vehicle_category_map']:
         vehicle_info_insert = FEE_DATA['_vehicle_category_map'][category_id]
         if 'insertion_fee' in vehicle_info_insert:
-            insertion_fee=vehicle_info_insert['insertion_fee']; insertion_fee_details=f"Fissa veicoli ({vehicle_info_insert['type']})"; is_vehicle_insertion=True
+            insertion_fee = vehicle_info_insert['insertion_fee']
+            insertion_fee_details = f"Fissa veicoli ({vehicle_info_insert['type']})"; is_vehicle_insertion = True
     if not is_vehicle_insertion:
         key = "auction" if listing_type=="Asta" else "buy_it_now"
         if store_subscription=="Nessuno":
-            insertion_fee=to_decimal(FEE_DATA['insertion_fees']['non_store'][key]); insertion_fee_details=f"'{listing_type}' no negozio"
+            insertion_fee = to_decimal(FEE_DATA['insertion_fees']['non_store'][key])
+            insertion_fee_details = f"'{listing_type}' no negozio"
         else:
-            store=FEE_DATA['insertion_fees']['store_subscriptions'][store_subscription]
-            free_key=f"free_{key}_listings"; extra_key=f"extra_listing_fee_{key}"; allowance=store.get(free_key)
-            if allowance=="unlimited": insertion_fee_details=f"Illimitate '{listing_type}' ({store_subscription})"
+            store = FEE_DATA['insertion_fees']['store_subscriptions'][store_subscription]
+            free_key = f"free_{key}_listings"; extra_key = f"extra_listing_fee_{key}"
+            allowance = store.get(free_key)
+            if allowance=="unlimited": insertion_fee_details = f"Illimitate '{listing_type}' ({store_subscription})"
             elif isinstance(allowance,int) and num_listings_this_month > allowance:
                 insertion_fee=to_decimal(store[extra_key]); insertion_fee_details=f"Extra '{listing_type}' ({store_subscription}, >{allowance})"
             elif isinstance(allowance,int): insertion_fee_details=f"Gratuita '{listing_type}' ({store_subscription}, quota {allowance})"
             else: insertion_fee=to_decimal(store.get(extra_key,'0')); insertion_fee_details=f"'{listing_type}' ({store_subscription})"
     results['insertion_fee']=insertion_fee; results['insertion_fee_details']=insertion_fee_details; total_fees_pre_vat+=insertion_fee
+    
     results['listing_upgrades_fees']=[]; upgrade_total=Decimal('0')
     if add_subtitle:
         sub_fee=to_decimal(FEE_DATA['listing_upgrades']['subtitle']); results['listing_upgrades_fees'].append({"name":"Sottotitolo","fee":sub_fee}); upgrade_total+=sub_fee
@@ -165,282 +177,37 @@ def calculate_fees(item_price, shipping_charged_to_customer, item_cost, your_act
         is_veh_reserve = category_id in FEE_DATA['_vehicle_category_map']
         if is_veh_reserve and "vehicle_reserve_price_fee" in FEE_DATA['vehicles']:
             res_fee=to_decimal(FEE_DATA['vehicles']['vehicle_reserve_price_fee']); res_detail=f"Fissa veicoli: {res_fee}€"
-        else:
+        else: 
             rp_cfg=FEE_DATA['listing_upgrades']['reserve_price']; res_val=to_decimal(reserve_price_value)
             res_fee=max(to_decimal(rp_cfg['min_fee']),min(to_decimal(rp_cfg['max_fee']),res_val*to_percentage_decimal(rp_cfg['percentage_rate'])))
             res_detail=f"{rp_cfg['percentage_rate']*100}% su {res_val}€ (min {rp_cfg['min_fee']}€, max {rp_cfg['max_fee']}€)"
         results['listing_upgrades_fees'].append({"name":f"Riserva ({res_detail})","fee":res_fee}); upgrade_total+=res_fee
     results['listing_upgrade_total_fee']=upgrade_total; total_fees_pre_vat+=upgrade_total
+
     results['total_fees_pre_vat'] = to_decimal(total_fees_pre_vat); vat_amount = Decimal('0')
-    if apply_vat: vat_amount = to_decimal(results['total_fees_pre_vat']*to_percentage_decimal(vat_rate_input/100))
+    if apply_vat:
+        vat_amount = to_decimal(results['total_fees_pre_vat'] * to_percentage_decimal(vat_rate_input/100))
     results['vat_amount']=vat_amount; results['total_fees_incl_vat']=results['total_fees_pre_vat']+vat_amount
+    
+    # AGGIORNAMENTO CALCOLO PROFITTO
     results['net_profit'] = total_sale_price_dec - item_cost_dec - your_actual_shipping_cost_dec - results['total_fees_incl_vat']
     results['profit_if_vat_reclaimed'] = total_sale_price_dec - item_cost_dec - your_actual_shipping_cost_dec - results['total_fees_pre_vat']
+    
     return results
 
+# --- Streamlit UI ---
+st.title("💰 Calcolatore Utile Netto Vendite eBay")
+st.caption(f"Basato su tariffe professionali del: {FEE_DATA['generated_on']}")
 
-# --- CSS Custom Styling ---
-ebay_custom_css = """
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Market+Sans:wght@400;700&display=swap');
-
-    :root {
-        --clr-red: #E53238;
-        --clr-blue: #0064D2;
-        --clr-yellow: #F5AF02;
-        --clr-green: #86B817;
-        --clr-gray: #F7F7F7;
-        --clr-text-primary: #222222;
-        --clr-text-secondary: #555555;
-        --clr-text-light: #FFFFFF;
-        --clr-border: #DDDDDD;
-        --font-primary: "Market Sans", "Helvetica Neue", Arial, sans-serif;
-        --border-radius-main: 8px;
-        --box-shadow-main: 0 2px 4px rgba(0,0,0,.10);
-    }
-
-    /* Specific for Streamlit's dark theme */
-    [data-theme="dark"] :root {
-        --clr-gray: #22272B; /* Darker gray for dark mode card backgrounds */
-        --clr-text-primary: #E0E0E0;
-        --clr-text-secondary: #B0B0B0;
-        --clr-border: #444444;
-    }
-
-    body, .stApp {
-        font-family: var(--font-primary);
-        color: var(--clr-text-primary);
-        font-size: 16px;
-        line-height: 1.6;
-    }
-
-    /* Titles */
-    h1 { /* Streamlit's main title */
-        font-family: var(--font-primary);
-        font-size: 32px !important;
-        color: var(--clr-blue) !important;
-        font-weight: 700 !important;
-        margin-bottom: 24px !important;
-    }
-    h2, .stHeadingContainer h2 { /* Streamlit uses h2 for st.subheader */
-        font-family: var(--font-primary);
-        font-size: 24px !important;
-        color: var(--clr-red) !important; /* Using red for H2 as per request */
-        font-weight: 700 !important;
-        margin-top: 32px !important;
-        margin-bottom: 16px !important;
-    }
-     h3, .stHeadingContainer h3 { /* For st.markdown("### Title") */
-        font-family: var(--font-primary);
-        font-size: 20px !important;
-        color: var(--clr-text-primary) !important;
-        font-weight: 700 !important;
-        margin-top: 24px !important;
-        margin-bottom: 12px !important;
-    }
-
-
-    /* Buttons */
-    .stButton>button {
-        font-family: var(--font-primary);
-        border-radius: var(--border-radius-main) !important;
-        padding: 10px 24px !important;
-        font-weight: 700 !important;
-        border: 2px solid transparent !important; /* For consistent sizing with focus */
-        transition: background-color 0.2s ease, border-color 0.2s ease;
-    }
-    .stButton>button:focus {
-        outline: none !important;
-        border: 2px solid var(--clr-blue) !important;
-        box-shadow: 0 0 0 2px var(--clr-blue) !important; /* Simpler focus ring for buttons */
-    }
-
-    /* Primary Button (Simulated with a class if we wrap button in markdown) */
-    /* For Streamlit's default button, we can target it, assuming it's the main CTA */
-    /* This targets the button in the sidebar specifically if it's the one */
-    div[data-testid="stSidebar"] .stButton>button {
-        background-color: var(--clr-blue) !important;
-        color: var(--clr-text-light) !important;
-    }
-    div[data-testid="stSidebar"] .stButton>button:hover {
-        background-color: #0053ad !important; /* Darken blue by ~8-10% */
-    }
-
-    /* Secondary button styling - if we had other buttons */
-    /* .stButton.secondary>button {
-        background-color: var(--clr-red) !important;
-        color: var(--clr-text-light) !important;
-    }
-    .stButton.secondary>button:hover {
-        background-color: #c32a2f !important; /* Darken red */
-    } */
-
-    /* Input Widgets - General Styling */
-    .stTextInput input, .stNumberInput input, .stDateInput input, .stTimeInput input, .stSelectbox select {
-        font-family: var(--font-primary);
-        border-radius: var(--border-radius-main) !important;
-        border: 1px solid var(--clr-border) !important;
-        padding: 8px 12px !important;
-    }
-    .stTextInput input:focus, .stNumberInput input:focus, .stDateInput input:focus, .stTimeInput input:focus, .stSelectbox select:focus {
-        border-color: var(--clr-blue) !important;
-        box-shadow: 0 0 0 2px var(--clr-blue) !important; /* Focus ring */
-        outline: none !important;
-    }
-    
-    /* Labels for inputs */
-    .stTextInput label, .stNumberInput label, .stDateInput label, .stTimeInput label, .stSelectbox label, .stRadio label, .stCheckbox label {
-        font-family: var(--font-primary);
-        color: var(--clr-text-secondary) !important;
-        font-weight: 700 !important; /* Bolder labels like eBay */
-        font-size: 14px !important;
-        margin-bottom: 6px !important;
-    }
-
-    /* Radio buttons and Checkboxes */
-    .stRadio, .stCheckbox {
-        font-family: var(--font-primary);
-    }
-
-
-    /* Metric styling */
-    div[data-testid="stMetric"] {
-        background-color: var(--clr-gray);
-        border-radius: var(--border-radius-main);
-        padding: 16px;
-        box-shadow: var(--box-shadow-main);
-        border: 1px solid var(--clr-border);
-        margin-bottom: 16px; /* Spacing between metrics */
-    }
-    div[data-testid="stMetric"] label { /* Metric Label */
-        font-family: var(--font-primary);
-        color: var(--clr-text-secondary) !important;
-        font-size: 14px !important;
-        font-weight: 700 !important;
-    }
-    div[data-testid="stMetric"] div[data-testid="stMetricValue"] { /* Metric Value */
-        font-family: var(--font-primary);
-        font-size: 28px !important;
-        font-weight: 700 !important;
-        color: var(--clr-text-primary) !important;
-        line-height: 1.2 !important;
-    }
-    
-    /* Profit/Loss Badges using stMetric's delta */
-    /* Positive delta (profit) */
-    div[data-testid="stMetricDelta"] svg[data-testid="stMetricDeltaIndicatorPositive"] {
-        fill: var(--clr-green) !important; /* Using green for profit */
-    }
-    div[data-testid="stMetricDelta"] div[data-testid="stMetricLabel"] ~ div:last-child[style*="color: rgb(46, 166, 79)"], /* Streamlit default green */
-    div[data-testid="stMetricDelta"] div[data-testid="stMetricLabel"] ~ div:last-child[style*="color: rgb(var(--clr-green))"] { /* Custom green */
-        color: var(--clr-green) !important;
-    }
-
-    /* Negative delta (loss/cost) */
-     div[data-testid="stMetricDelta"] svg[data-testid="stMetricDeltaIndicatorNegative"] {
-        fill: var(--clr-red) !important; /* Using red for loss/cost */
-    }
-    div[data-testid="stMetricDelta"] div[data-testid="stMetricLabel"] ~ div:last-child[style*="color: rgb(255, 43, 43)"], /* Streamlit default red */
-    div[data-testid="stMetricDelta"] div[data-testid="stMetricLabel"] ~ div:last-child[style*="color: rgb(var(--clr-red))"] { /* Custom red */
-        color: var(--clr-red) !important;
-    }
-
-    /* Main content area - to try and simulate max-width and centering if possible */
-    .main .block-container { /* This is a common Streamlit main content container */
-        max-width: 1280px;
-        padding-left: 24px; /* Gutter */
-        padding-right: 24px; /* Gutter */
-        margin-left: auto;
-        margin-right: auto;
-    }
-    
-    /* Sidebar styling */
-    div[data-testid="stSidebarUserContent"] { /* Targets the content area of the sidebar */
-        padding: 24px;
-    }
-    div[data-testid="stSidebar"] { /* The whole sidebar */
-        background-color: var(--clr-gray);
-         border-right: 1px solid var(--clr-border);
-    }
-    [data-theme="dark"] div[data-testid="stSidebar"] {
-        background-color: #1a1f22; /* Slightly different dark for sidebar */
-    }
-
-
-    /* Custom card-like sections using markdown and divs */
-    .custom-card {
-        background-color: var(--clr-gray);
-        border-radius: var(--border-radius-main);
-        padding: 20px;
-        box-shadow: var(--box-shadow-main);
-        margin-bottom: 24px;
-        border: 1px solid var(--clr-border);
-    }
-    .custom-card h3 { /* Titles within custom cards */
-         color: var(--clr-blue) !important; /* Blue for titles in cards */
-         margin-top: 0 !important;
-    }
-    
-    /* Styling for the "Riepilogo Utile Netto Estimato" section specifically */
-    /* We can wrap this section in a div with a class if needed, or target its subheader */
-    
-    /* Links */
-    a, a:visited {
-        color: var(--clr-blue);
-        text-decoration: none;
-    }
-    a:hover, a:focus {
-        color: #0053ad; /* Darken blue */
-        text-decoration: underline;
-    }
-    
-    /* Expander */
-    .stExpander {
-        border: 1px solid var(--clr-border) !important;
-        border-radius: var(--border-radius-main) !important;
-        box-shadow: var(--box-shadow-main) !important;
-        margin-bottom: 16px !important;
-    }
-    .stExpander header {
-        font-family: var(--font-primary) !important;
-        font-weight: 700 !important;
-        font-size: 16px !important;
-        color: var(--clr-text-primary) !important;
-        background-color: var(--clr-gray) !important; /* Light gray for expander header */
-        border-bottom: 1px solid var(--clr-border) !important;
-        padding: 12px 16px !important;
-    }
-     [data-theme="dark"] .stExpander header {
-        background-color: #2a3035 !important;
-     }
-
-    /* Improve caption visibility and style */
-    .stCaption {
-        font-family: var(--font-primary);
-        color: var(--clr-text-secondary) !important;
-        font-size: 13px !important;
-    }
-
-    /* Horizontal rule <hr> */
-    hr {
-        border: none;
-        border-top: 1px solid var(--clr-border);
-        margin-top: 24px;
-        margin-bottom: 24px;
-    }
-    
-</style>
-"""
-st.markdown(ebay_custom_css, unsafe_allow_html=True)
-
-# --- Streamlit UI (Input section - Sidebar) ---
-st.sidebar.header("Dati della Vendita e Costi")
+st.sidebar.header("Dati della Vendita e Costi") # Titolo sidebar aggiornato
 col1, col2 = st.sidebar.columns(2)
 
 with col1:
     item_price_input = st.number_input("Prezzo oggetto (€)", min_value=0.01, value=274.90, step=0.01, format="%.2f")
+    # Rinominato per chiarezza che è quanto PAGA il cliente
     shipping_charged_input = st.number_input("Spedizione pagata dal cliente (€)", min_value=0.00, value=14.99, step=0.01, format="%.2f")
     item_cost_input = st.number_input("Tuo costo acquisto oggetto (€)", min_value=0.00, value=150.00, step=0.01, format="%.2f")
+    # NUOVO INPUT per il costo di spedizione sostenuto dal venditore
     your_shipping_cost_input = st.number_input("Tuo costo spedizione al cliente (€)", min_value=0.00, value=7.00, step=0.01, format="%.2f", help="Quanto paghi effettivamente per spedire.")
     
 with col2:
@@ -456,7 +223,7 @@ with col2:
     if category_id_input == 0:
         category_id_input = st.number_input("ID Cat. eBay (se 'Altro')", min_value=1, value=example_category_id)
     else:
-        st.sidebar.caption(f"ID Cat.: {category_id_input}") # Moved to sidebar for cleaner main page
+        st.caption(f"ID Cat.: {category_id_input}")
 
     buyer_country_options = ["Italia","Malta","Germania","Francia","Spagna","Svezia","Regno Unito","Stati Uniti","Canada","Svizzera","Norvegia","Altro (Resto del Mondo)"]
     buyer_country_input = st.selectbox("Paese acquirente", options=buyer_country_options, index=1)
@@ -476,8 +243,7 @@ with col3:
         if isinstance(allowance_h, int): default_listings_val = allowance_h + 1
     num_listings_input = st.number_input(f"N° inserz. '{listing_type_input}' mese?", min_value=1, value=default_listings_val, step=1)
 with col4:
-    st.sidebar.markdown("**Opzioni Vendita:**") # Moved to sidebar
-    add_subtitle_input = st.checkbox("Sottotitolo", value=False)
+    st.write("**Opzioni Vendita:**"); add_subtitle_input = st.checkbox("Sottotitolo", value=False)
     is_auction = listing_type_input == "Asta"
     use_reserve_price_input = st.checkbox("Prezzo di riserva", value=False, disabled=not is_auction)
     reserve_price_val_input = st.number_input("Valore riserva (€)", min_value=0.00, value=50.00, disabled=not (use_reserve_price_input and is_auction), format="%.2f", step=0.01)
@@ -486,15 +252,9 @@ st.sidebar.header("Impostazioni IVA su Commissioni")
 apply_vat_input = st.sidebar.checkbox("Applica IVA su commissioni eBay", value=True)
 vat_rate_val_input = st.sidebar.number_input("Aliquota IVA (%)", min_value=0.0, value=22.0, disabled=not apply_vat_input, format="%.1f", step=0.1)
 
-# --- Main Page Content ---
-st.title("💰 Calcolatore Utile Netto Vendite eBay") 
-# st.caption è già incluso nel CSS per lo styling
-# st.caption(f"Basato su tariffe professionali del: {FEE_DATA['generated_on']}") # Rimosso perché già presente in alto e per pulizia
-
-
-if st.sidebar.button("💰 Calcola Utile Netto", use_container_width=True, key="main_calculate_button"): # Aggiunto key per univocità
+if st.sidebar.button("💰 Calcola Utile Netto", use_container_width=True):
     fees = calculate_fees(
-        item_price_input, shipping_charged_input, item_cost_input, your_shipping_cost_input,
+        item_price_input, shipping_charged_input, item_cost_input, your_shipping_cost_input, # NUOVO VALORE PASSATO
         category_id_input, buyer_country_input, seller_status_input, high_inad_input,
         store_subscription_input, num_listings_input, 
         "Asta" if listing_type_input == "Asta" else "Compralo Subito",
@@ -502,39 +262,19 @@ if st.sidebar.button("💰 Calcola Utile Netto", use_container_width=True, key="
         apply_vat_input, vat_rate_val_input
     )
 
-    # Usiamo st.markdown per creare una "card" per il riepilogo dell'utile
-    st.markdown("## 📊 Riepilogo Utile Netto Estimato")
+    st.subheader("📊 Riepilogo Utile Netto Estimato")
+    st.metric(label="💸 UTILE NETTO STIMATO", value=f"{fees['net_profit']:.2f} €")
     
-    # Main Profit Metric - displayed larger and more prominently
-    # Using markdown for custom styling for the main profit metric
-    profit_color = "var(--clr-green)" if fees['net_profit'] >= 0 else "var(--clr-red)"
-    st.markdown(f"""
-    <div style="
-        text-align: center; 
-        padding: 20px; 
-        border-radius: var(--border-radius-main); 
-        background-color: var(--clr-gray); 
-        box-shadow: var(--box-shadow-main);
-        margin-bottom: 24px;
-    ">
-        <p style="font-size: 16px; color: var(--clr-text-secondary); margin-bottom: 5px; font-weight: 700;">UTILE NETTO STIMATO</p>
-        <p style="font-size: 42px; color: {profit_color}; font-weight: 700; margin-bottom: 10px; line-height: 1;">
-            {fees['net_profit']:.2f} €
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Breakdown of profit components
-    st.markdown("### Scomposizione Utile:")
-    profit_col1, profit_col2, profit_col3, profit_col4 = st.columns(4)
+    # AGGIORNAMENTO SCOMPOSIZIONE UTILE
+    profit_col1, profit_col2, profit_col3, profit_col4 = st.columns(4) # Aggiunta una colonna
     with profit_col1:
         st.metric(label="➕ Ricavo Totale Vendita", value=f"{fees['total_sale_price']:.2f} €")
     with profit_col2:
-        st.metric(label="➖ Tuo Costo Oggetto", value=f"{fees['item_cost']:.2f} €", delta_color="off") # delta_color off, colore gestito da CSS
+        st.metric(label="➖ Tuo Costo Oggetto", value=f"{fees['item_cost']:.2f} €", delta_color="inverse")
     with profit_col3:
-        st.metric(label="➖ Tuo Costo Spedizione", value=f"{fees['your_actual_shipping_cost']:.2f} €", delta_color="off")
+        st.metric(label="➖ Tuo Costo Spedizione", value=f"{fees['your_actual_shipping_cost']:.2f} €", delta_color="inverse") # NUOVA METRICA
     with profit_col4:
-        st.metric(label="➖ Tot. Comm. eBay (IVA incl.)", value=f"{fees['total_fees_incl_vat']:.2f} €", delta_color="off")
+        st.metric(label="➖ Tot. Comm. eBay (IVA incl.)", value=f"{fees['total_fees_incl_vat']:.2f} €", delta_color="inverse")
     
     st.caption(f"Formula: {fees['total_sale_price']:.2f}€ (Ricavo) - {fees['item_cost']:.2f}€ (Costo Oggetto) - {fees['your_actual_shipping_cost']:.2f}€ (Costo Sped.) - {fees['total_fees_incl_vat']:.2f}€ (Comm.) = {fees['net_profit']:.2f}€ (Utile)")
     
@@ -544,38 +284,31 @@ if st.sidebar.button("💰 Calcola Utile Netto", use_container_width=True, key="
         st.info(f"Utile netto considera {fees['vat_amount']:.2f}€ IVA su comm. come costo. Se recuperabile, utile: {fees['profit_if_vat_reclaimed']:.2f}€.")
     st.markdown("---")
 
-    st.markdown("## 💳 Dettaglio Commissioni eBay")
-    # Custom card for fee details
-    st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
-    
+    st.subheader("💳 Dettaglio Commissioni eBay")
     res_col1, res_col2 = st.columns(2)
     with res_col1:
-        st.markdown(f"### Comm. Valore Finale (CVF)") # Usato H3 per coerenza
-        st.caption(f"{fees['fvf_calculation_details']} ({fees['fvf_group_name']})")
+        st.markdown(f"**Comm. Valore Finale (CVF)**")
+        st.markdown(f"<small><i>{fees['fvf_calculation_details']} ({fees['fvf_group_name']})</i></small>", unsafe_allow_html=True)
         st.markdown(f"CVF Base: **{fees['base_fvf_amount_raw']:.2f} €**")
         for item in fees['fvf_discounts_surcharges']: st.markdown(f"{item['name']} ({item['rate_on_fvf']:.1f}%): {('+' if item['amount']>=0 else '')}{item['amount']:.2f} €")
         st.markdown(f"CVF Effettiva: **{fees['final_value_fee']:.2f} €**"); st.markdown("---")
-        st.markdown(f"**Adeguamento Normativo:** {fees['regulatory_fee']:.2f} €")
-        st.markdown(f"**Tariffa Internazionale:** {fees['international_fee']:.2f} €")
-        st.caption(f"{fees['international_fee_details']}")
-        st.markdown(f"**Comm. Fissa Ordine:** {fees['fixed_order_fee']:.2f} €")
+        st.metric("Adeguamento Normativo", f"{fees['regulatory_fee']:.2f} €", delta_color="off")
+        st.metric("Tariffa Internazionale", f"{fees['international_fee']:.2f} €", delta_color="off")
+        st.markdown(f"<small><i>{fees['international_fee_details']}</i></small>", unsafe_allow_html=True)
+        st.metric("Comm. Fissa Ordine", f"{fees['fixed_order_fee']:.2f} €", delta_color="off")
     with res_col2:
-        st.markdown(f"### Tariffa Inserzione") # Usato H3
-        st.caption(f"{fees['insertion_fee_details']}")
-        st.markdown(f"Importo: **{fees['insertion_fee']:.2f} €**")
+        st.metric("Tariffa Inserzione", f"{fees['insertion_fee']:.2f} €", delta_color="off")
+        st.markdown(f"<small><i>{fees['insertion_fee_details']}</i></small>", unsafe_allow_html=True)
         if fees['listing_upgrades_fees']:
-            st.markdown("### Opzioni vendita:") # Usato H3
+            st.markdown("Opzioni vendita:")
             for upg in fees['listing_upgrades_fees']: st.markdown(f"- {upg['name']}: {upg['fee']:.2f} €")
-            st.markdown(f"**Totale Opzioni:** {fees['listing_upgrade_total_fee']:.2f} €")
-        st.markdown("---")
+        st.metric("Totale Opzioni", f"{fees['listing_upgrade_total_fee']:.2f} €", delta_color="off"); st.markdown("---")
         st.markdown(f"**Tot. Comm. (IVA escl.): {fees['total_fees_pre_vat']:.2f} €**")
         if apply_vat_input and fees['vat_amount'] > 0: st.markdown(f"**IVA ({vat_rate_val_input:.1f}%) su comm.: {fees['vat_amount']:.2f} €**")
-        st.markdown(f"#### TOTALE COMM. (IVA incl.): {fees['total_fees_incl_vat']:.2f} €") # Usato H4 per evidenza
-    
-    st.markdown("</div>", unsafe_allow_html=True) # Chiusura custom-card
+        st.markdown(f"**TOTALE COMM. (IVA incl.): {fees['total_fees_incl_vat']:.2f} €**")
         
     with st.expander("🔍 Vedi riepilogo tariffe stile esempio eBay (dettaglio avanzato)"):
-        # (Codice dell'expander invariato)
+        # ... (questa parte rimane invariata)
         current_is_vehicle_fixed_fvf = fees['is_vehicle_fixed_fvf'] 
         example_fvf_base = fees['base_fvf_amount_raw']
         example_discount_amount = Decimal('0')
@@ -607,10 +340,6 @@ if st.sidebar.button("💰 Calcola Utile Netto", use_container_width=True, key="
             vat_on_ex_style = to_decimal(total_fees_pre_vat_example_style * (Decimal(str(vat_rate_val_input))/100))
             st.text(f"IVA ({vat_rate_val_input:.1f}%): {vat_on_ex_style:.2f} €")
             st.markdown(f"**Tariffe totali (IVA inclusa): {total_fees_pre_vat_example_style + vat_on_ex_style:.2f} €**")
-
-else:
-    st.info("Inserisci i dati nella sidebar e clicca 'Calcola Utile Netto' per visualizzare i risultati.")
-
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("Disclaimer: Strumento di stima. Tariffe eBay effettive possono variare.")
