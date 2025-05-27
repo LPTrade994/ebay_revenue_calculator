@@ -3,7 +3,7 @@ import json
 from decimal import Decimal, ROUND_HALF_UP
 
 # --- Streamlit Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
-st.set_page_config(page_title="Calcolatore Commissioni eBay", layout="wide")
+st.set_page_config(page_title="Calcolatore Utile Netto eBay", layout="wide") # Titolo aggiornato
 
 # --- Utility Functions ---
 def to_decimal(value, precision='0.01'):
@@ -15,7 +15,7 @@ def to_percentage_decimal(value):
     return Decimal(str(value))
 
 # --- Load Fee Data ---
-@st.cache_data # This decorator itself is a Streamlit command if it interacts with Streamlit's caching mechanism early
+@st.cache_data
 def load_fee_data(file_path="ebay_professional_fees_it.json"):
     with open(file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
@@ -37,14 +37,13 @@ def load_fee_data(file_path="ebay_professional_fees_it.json"):
                         "final_value_fee": to_decimal(vehicle_item_data['final_value_fee'])
                     }
             else:
-                # This st.warning() is fine here as set_page_config has already been called
                 st.warning(f"Dati incompleti per il tipo di veicolo '{key}' nel JSON.")
     data['_vehicle_category_map'] = vehicle_cats
     return data
 
-FEE_DATA = load_fee_data() # Now this is called AFTER set_page_config
+FEE_DATA = load_fee_data()
 
-# --- Calculation Functions ---
+# --- Calculation Functions (invariate rispetto a prima) ---
 
 def get_final_value_fee_rate_and_group(category_id, total_sale_price):
     total_sale_price_dec = to_decimal(total_sale_price)
@@ -128,6 +127,7 @@ def calculate_fees(item_price, shipping_cost, item_cost, category_id, buyer_coun
     item_cost_dec = to_decimal(item_cost)
     total_sale_price_dec = item_price_dec + shipping_cost_dec
     results['total_sale_price'] = total_sale_price_dec
+    results['item_cost'] = item_cost_dec # Store item_cost for profit display
 
     is_vehicle_fixed_fvf = False 
     if category_id in FEE_DATA['_vehicle_category_map']:
@@ -279,24 +279,25 @@ def calculate_fees(item_price, shipping_cost, item_cost, category_id, buyer_coun
         vat_amount = to_decimal(results['total_fees_pre_vat'] * vat_rate_dec)
     results['vat_amount'] = vat_amount
     results['total_fees_incl_vat'] = results['total_fees_pre_vat'] + vat_amount
-    results['profit_if_vat_on_fees_is_cost'] = total_sale_price_dec - item_cost_dec - results['total_fees_incl_vat']
-    results['profit_if_vat_on_fees_reclaimed'] = total_sale_price_dec - item_cost_dec - results['total_fees_pre_vat']
+    
+    # Calcolo profitto principale (IVA su commissioni è un costo)
+    results['net_profit'] = total_sale_price_dec - item_cost_dec - results['total_fees_incl_vat']
+    # Calcolo profitto alternativo (se IVA su commissioni è recuperabile)
+    results['profit_if_vat_reclaimed'] = total_sale_price_dec - item_cost_dec - results['total_fees_pre_vat']
     
     return results
 
 # --- Streamlit UI ---
-# st.set_page_config IS ALREADY AT THE TOP
-
-st.title("📊 Calcolatore Commissioni eBay (Italia)")
+st.title("💰 Calcolatore Utile Netto Vendite eBay") # Titolo aggiornato
 st.caption(f"Basato sulle tariffe professionali del: {FEE_DATA['generated_on']}")
 
-st.sidebar.header("Parametri della Vendita")
+st.sidebar.header("Dati della Vendita") # Aggiornato per chiarezza
 col1, col2 = st.sidebar.columns(2)
 
 with col1:
     item_price_input = st.number_input("Prezzo dell'oggetto (€)", min_value=0.01, value=274.90, step=0.01, format="%.2f")
     shipping_cost_input = st.number_input("Costo di spedizione (€)", min_value=0.00, value=14.99, step=0.01, format="%.2f")
-    item_cost_input = st.number_input("Costo acquisto oggetto (€)", min_value=0.00, value=150.00, step=0.01, format="%.2f")
+    item_cost_input = st.number_input("Tuo costo acquisto oggetto (€)", min_value=0.00, value=150.00, step=0.01, format="%.2f", help="Quanto hai pagato per l'oggetto.") # Testo aiuto aggiornato
     
     example_category_id = 171485 
     category_options = {
@@ -344,12 +345,11 @@ with col4:
     use_reserve_price_input = st.checkbox("Prezzo di riserva", value=False, disabled=not is_auction)
     reserve_price_val_input = st.number_input("Valore riserva (€)", min_value=0.00, value=50.00, step=0.01, format="%.2f", disabled=not (use_reserve_price_input and is_auction))
 
-st.sidebar.header("Impostazioni IVA")
-apply_vat_input = st.sidebar.checkbox("Applica IVA su commissioni", value=True)
+st.sidebar.header("Impostazioni IVA su Commissioni") # Aggiornato per chiarezza
+apply_vat_input = st.sidebar.checkbox("Applica IVA su commissioni eBay", value=True)
 vat_rate_val_input = st.sidebar.number_input("Aliquota IVA (%)", min_value=0.0, value=22.0, step=0.1, format="%.1f", disabled=not apply_vat_input)
 
-if st.sidebar.button("🔄 Calcola", use_container_width=True):
-    st.subheader("Risultati del Calcolo")
+if st.sidebar.button("💰 Calcola Utile Netto", use_container_width=True): # Testo bottone aggiornato
     
     fees = calculate_fees(
         item_price_input, shipping_cost_input, item_cost_input, category_id_input,
@@ -360,11 +360,33 @@ if st.sidebar.button("🔄 Calcola", use_container_width=True):
         apply_vat_input, vat_rate_val_input
     )
 
-    res_col1, res_col2 = st.columns(2)
+    st.subheader("📊 Riepilogo Utile Netto Estimato")
+
+    # --- SEZIONE UTILE NETTO IN EVIDENZA ---
+    st.metric(label="💸 UTILE NETTO STIMATO", value=f"{fees['net_profit']:.2f} €", delta_color="normal")
+    
+    profit_col1, profit_col2, profit_col3 = st.columns(3)
+    with profit_col1:
+        st.metric(label="➕ Ricavo Totale Vendita", value=f"{fees['total_sale_price']:.2f} €")
+    with profit_col2:
+        st.metric(label="➖ Tuo Costo Oggetto", value=f"{fees['item_cost']:.2f} €", delta_color="inverse")
+    with profit_col3:
+        st.metric(label="➖ Totale Commissioni eBay (IVA incl.)", value=f"{fees['total_fees_incl_vat']:.2f} €", delta_color="inverse")
+    
+    st.caption(f"Formula: {fees['total_sale_price']:.2f} € (Ricavo) - {fees['item_cost']:.2f} € (Costo Oggetto) - {fees['total_fees_incl_vat']:.2f} € (Commissioni) = {fees['net_profit']:.2f} € (Utile)")
+    
+    if not apply_vat_input or fees['vat_amount'] == 0:
+         st.info("L'IVA sulle commissioni non è stata applicata o è pari a zero.")
+    else:
+        st.info(f"L'utile netto considera {fees['vat_amount']:.2f} € di IVA sulle commissioni come costo. Se puoi recuperare l'IVA, l'utile sarebbe {fees['profit_if_vat_reclaimed']:.2f} €.")
+    
+    st.markdown("---")
+
+    # --- DETTAGLIO COMMISSIONI (COME PRIMA, MA SOTTO) ---
+    st.subheader("💳 Dettaglio Commissioni eBay")
+    
+    res_col1, res_col2 = st.columns(2) # Riusiamo le colonne per il dettaglio commissioni
     with res_col1:
-        st.metric("💰 Totale Vendita", f"{fees['total_sale_price']:.2f} €")
-        st.markdown(f"<small>Oggetto: {item_price_input:.2f}€ + Sped.: {shipping_cost_input:.2f}€</small>", unsafe_allow_html=True)
-        st.markdown("---")
         st.markdown(f"**Comm. Valore Finale (CVF)**")
         st.markdown(f"<small><i>{fees['fvf_calculation_details']} ({fees['fvf_group_name']})</i></small>", unsafe_allow_html=True)
         st.markdown(f"CVF Base: **{fees['base_fvf_amount_raw']:.2f} €**")
@@ -372,31 +394,28 @@ if st.sidebar.button("🔄 Calcola", use_container_width=True):
             st.markdown(f"{item['name']} ({item['rate_on_fvf']:.1f}%): {('+' if item['amount'] >=0 else '')}{item['amount']:.2f} €")
         st.markdown(f"CVF Effettiva: **{fees['final_value_fee']:.2f} €**")
         st.markdown("---")
-        st.metric("Adeguamento Normativo", f"{fees['regulatory_fee']:.2f} €", delta_color="inverse")
-        st.metric("Tariffa Internazionale", f"{fees['international_fee']:.2f} €", delta_color="inverse")
+        st.metric("Adeguamento Normativo", f"{fees['regulatory_fee']:.2f} €", delta_color="off") # delta_color="off" per non far sembrare una perdita/guadagno
+        st.metric("Tariffa Internazionale", f"{fees['international_fee']:.2f} €", delta_color="off")
         st.markdown(f"<small><i>{fees['international_fee_details']}</i></small>", unsafe_allow_html=True)
-        st.metric("Comm. Fissa Ordine", f"{fees['fixed_order_fee']:.2f} €", delta_color="inverse")
-        st.markdown("---")
-        st.metric("Tariffa Inserzione", f"{fees['insertion_fee']:.2f} €", delta_color="inverse")
+        st.metric("Comm. Fissa Ordine", f"{fees['fixed_order_fee']:.2f} €", delta_color="off")
+
+    with res_col2:
+        st.metric("Tariffa Inserzione", f"{fees['insertion_fee']:.2f} €", delta_color="off")
         st.markdown(f"<small><i>{fees['insertion_fee_details']}</i></small>", unsafe_allow_html=True)
         if fees['listing_upgrades_fees']:
             st.markdown("Opzioni vendita:")
             for upg in fees['listing_upgrades_fees']: st.markdown(f"- {upg['name']}: {upg['fee']:.2f} €")
-        st.metric("Totale Opzioni", f"{fees['listing_upgrade_total_fee']:.2f} €", delta_color="inverse")
-
-    with res_col2:
-        st.error(f"📉 Tot. Comm. (IVA escl.): {fees['total_fees_pre_vat']:.2f} €")
-        if apply_vat_input:
-            st.error(f"➕ IVA ({vat_rate_val_input:.1f}%): {fees['vat_amount']:.2f} €")
-            st.error(f"📉 Tot. Comm. (IVA incl.): {fees['total_fees_incl_vat']:.2f} €")
+        st.metric("Totale Opzioni", f"{fees['listing_upgrade_total_fee']:.2f} €", delta_color="off")
         st.markdown("---")
-        st.success(f"🎯 Profitto (IVA comm. è costo): {fees['profit_if_vat_on_fees_is_cost']:.2f} €")
-        st.info(f"🎯 Profitto (IVA comm. recuperabile): {fees['profit_if_vat_on_fees_reclaimed']:.2f} €")
-        st.markdown("---")
+        st.markdown(f"**Totale Commissioni (IVA esclusa): {fees['total_fees_pre_vat']:.2f} €**")
+        if apply_vat_input and fees['vat_amount'] > 0: # Mostra solo se IVA applicata e > 0
+            st.markdown(f"**IVA ({vat_rate_val_input:.1f}%) su commissioni: {fees['vat_amount']:.2f} €**")
+        st.markdown(f"**TOTALE COMMISSIONI (IVA inclusa): {fees['total_fees_incl_vat']:.2f} €**")
+        
 
-        st.markdown("#### Riepilogo stile Esempio eBay:")
+    # --- RIEPILOGO STILE ESEMPIO (OPZIONALE, LO MANTENGO PER COMPLETEZZA) ---
+    with st.expander("🔍 Vedi riepilogo tariffe stile esempio eBay (dettaglio avanzato)"):
         current_is_vehicle_fixed_fvf = fees['is_vehicle_fixed_fvf'] 
-
         example_fvf_base = fees['base_fvf_amount_raw']
         example_discount_amount = Decimal('0')
         if not current_is_vehicle_fixed_fvf:
