@@ -1,0 +1,396 @@
+{
+  "generated_on": "2025-05-27T15:51:27.536571",
+  "constants": {
+    "fixed_order_fee_eur": 0.35,
+    "regulatory_compliance_fee_rate": 0.0035,
+    "currency_conversion_fee_rate": 0.03
+  },
+  "discounts_surcharges": {
+    "top_rated_seller_discount_rate": -0.1,
+    "high_INAD_surcharge_rate": 0.04,
+    "below_standard_surcharge_rate": 0.06
+  },
+  "international_fee_rates": {
+    "Eurozone_Sweden": 0.0,
+    "Europe_non_eurozone_Sweden_UK": 0.016,
+    "United_Kingdom": 0.012,
+    "United_States_Canada": 0.016,
+    "Rest_of_world": 0.033
+  },
+  "insertion_fees": {
+    "non_store": {
+      "buy_it_now": 0.35,
+      "auction": 0.5
+    },
+    "store_subscriptions": {
+      "Base": {
+        "monthly_fee": 24.95,
+        "free_buy_it_now_listings": 400,
+        "extra_listing_fee_buy_it_now": 0.1,
+        "free_auction_listings": 40,
+        "extra_listing_fee_auction": 0.5
+      },
+      "Premium": {
+        "monthly_fee": 49.95,
+        "free_buy_it_now_listings": 10000,
+        "extra_listing_fee_buy_it_now": 0.05,
+        "free_auction_listings": 100,
+        "extra_listing_fee_auction": 0.5
+      },
+      "Premium_Plus": {
+        "monthly_fee": 179.95,
+        "free_buy_it_now_listings": "unlimited",
+        "extra_listing_fee_buy_it_now": 0.0,
+        "free_auction_listings": 250,
+        "extra_listing_fee_auction": 0.5
+      }
+    }
+  },
+  "listing_upgrades": {
+    "subtitle": 1.3,
+    "reserve_price": {
+      "percentage_rate": 0.026,
+      "min_fee": 2.6,
+      "max_fee": 130.0
+    },
+    "second_category_fee": "same as insertion fee for second category",
+    "photos_up_to_24": 0.0,
+    "best_offer": 0.0,
+    "schedule_listing": 0.0,
+    "promoted_listings": "CPC or upfront fixed fee depending on campaign"
+  },
+  "vehicles": {
+    "high_value_vehicles": {
+      "insertion_fee": 7.83,
+      "final_value_fee": 30.43,
+      "category_ids": [
+        9800,
+        31269,
+        63728
+      ]
+    },
+    "motorcycles_and_others": {
+      "insertion_fee": 5.22,
+      "final_value_fee": 16.52,
+      "category_ids": [
+        9804,
+        9939,
+        15266,
+        153550,
+        153551,
+        1295
+      ]
+    },
+    "vehicle_reserve_price_fee": 4.35
+  },
+  "regulatory_fee": {
+    "rate": 0.0035
+  },
+  "currency_conversion": {
+    "rate": 0.03
+  },
+  "final_value_fees": [
+    {
+      "group": "Moto_parts_and_accessories",
+      "variable_rate": 0.12,
+      "category_ids": [
+        131090,
+        147506,
+        32098,
+        25622,
+        21670,
+        10063,
+        122304,
+        177074,
+        38635
+      ]
+    },
+    {
+      "group": "Auto_parts_accessories",
+      "variable_rate": 0.125,
+      "category_ids": [
+        6030
+      ]
+    },
+    {
+      "group": "Tyres_and_wheels",
+      "tiers": [
+        {
+          "up_to_eur": 500,
+          "rate": 0.065
+        },
+        {
+          "above_eur": 500,
+          "rate": 0.02
+        }
+      ],
+      "category_ids": [
+        33743,
+        180035
+      ]
+    },
+    {
+      "group": "Home_decor_FMCG",
+      "variable_rate": 0.11,
+      "category_ids": [
+        11700,
+        14339,
+        2984,
+        260059
+      ]
+    },
+    {
+      "group": "Garden_outdoors",
+      "variable_rate": 0.12,
+      "category_ids": [
+        159912
+      ]
+    },
+    {
+      "group": "Garden_furniture_pools_sheds",
+      "tiers": [
+        {
+          "up_to_eur": 250,
+          "rate": 0.12
+        },
+        {
+          "above_eur": 250,
+          "rate": 0.1
+        }
+      ],
+      "category_ids": [
+        25863,
+        20727,
+        139956
+      ]
+    },
+    {
+      "group": "Home_garden_spare_parts",
+      "variable_rate": 0.095,
+      "category_ids": [
+        43566,
+        99565,
+        99697,
+        116026,
+        159903,
+        20618,
+        42146
+      ]
+    },
+    {
+      "group": "Tech_devices",
+      "variable_rate": 0.065,
+      "category_ids": [
+        3247,
+        4787,
+        9355,
+        11071,
+        11724,
+        14970,
+        14990,
+        15069,
+        15088,
+        18793,
+        20710,
+        29518,
+        31388,
+        32852,
+        44995,
+        64602,
+        73839,
+        78997,
+        116868,
+        139971,
+        182085,
+        171485,
+        171957,
+        171961,
+        175672,
+        175708
+      ]
+    },
+    {
+      "group": "Tech_accessories",
+      "variable_rate": 0.085,
+      "category_ids": [
+        293,
+        619,
+        625,
+        15032,
+        58058
+      ]
+    },
+    {
+      "group": "Other_electronic_accessories",
+      "variable_rate": 0.095,
+      "category_ids": [
+        9394,
+        31530,
+        14961,
+        15200,
+        3286,
+        176970,
+        64353,
+        182064,
+        175744
+      ]
+    },
+    {
+      "group": "Collectibles_cards_figures",
+      "tiers": [
+        {
+          "up_to_eur": 990,
+          "rate": 0.065
+        },
+        {
+          "above_eur": 990,
+          "rate": 0.02
+        }
+      ],
+      "category_ids": [
+        212,
+        246,
+        2536,
+        182982
+      ]
+    },
+    {
+      "group": "Art_antiquities_toys_stamps_coins_other_collectibles",
+      "tiers": [
+        {
+          "up_to_eur": 990,
+          "rate": 0.11
+        },
+        {
+          "above_eur": 990,
+          "rate": 0.02
+        }
+      ],
+      "category_ids": [
+        353,
+        220,
+        260,
+        11116,
+        1
+      ]
+    },
+    {
+      "group": "Comics",
+      "variable_rate": 0.065,
+      "category_ids": [
+        33346,
+        151093,
+        259103,
+        259106
+      ]
+    },
+    {
+      "group": "Watches",
+      "tiers": [
+        {
+          "up_to_eur": 100,
+          "rate": 0.11
+        },
+        {
+          "from_eur": 100,
+          "to_eur": 990,
+          "rate": 0.05
+        },
+        {
+          "above_eur": 990,
+          "rate": 0.02
+        }
+      ],
+      "category_ids": [
+        260325
+      ]
+    },
+    {
+      "group": "Jewellery",
+      "tiers": [
+        {
+          "up_to_eur": 990,
+          "rate": 0.11
+        },
+        {
+          "above_eur": 990,
+          "rate": 0.04
+        }
+      ],
+      "category_ids": [
+        281
+      ]
+    },
+    {
+      "group": "Shoes",
+      "tiers": [
+        {
+          "up_to_eur": 100,
+          "rate": 0.11
+        },
+        {
+          "above_eur": 100,
+          "rate": 0.05
+        }
+      ],
+      "category_ids": [
+        3034,
+        93227
+      ]
+    },
+    {
+      "group": "Bags_handbags",
+      "tiers": [
+        {
+          "up_to_eur": 990,
+          "rate": 0.11
+        },
+        {
+          "above_eur": 990,
+          "rate": 0.02
+        }
+      ],
+      "category_ids": [
+        169291
+      ]
+    },
+    {
+      "group": "Beauty_health_electrical",
+      "variable_rate": 0.065,
+      "category_ids": [
+        50101,
+        50102,
+        11858,
+        260774,
+        180512,
+        36449,
+        36448,
+        45735,
+        77305,
+        19263,
+        11872,
+        67408,
+        180953,
+        177767
+      ]
+    },
+    {
+      "group": "Other_categories_including_clothing_beauty",
+      "variable_rate": 0.11,
+      "category_ids": [
+        11450,
+        26395,
+        158990,
+        888,
+        99,
+        1305,
+        11233,
+        11232,
+        267,
+        38250,
+        1249,
+        12576
+      ]
+    }
+  ]
+}
